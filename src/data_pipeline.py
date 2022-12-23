@@ -5,7 +5,7 @@ import pandas as pd
 import numpy as np
 
 # from project_modules.model_functions import *
-from project_modules.preprocessing import (
+from expedia_kaggle.preprocessing import (
     target_encoding_values,
     enrich_target_encoding,
     null_impute_value,
@@ -13,10 +13,12 @@ from project_modules.preprocessing import (
     add_norm_features_for_value,
     impute_over_group,
 )
-import datetime as dt
+
+# import datetime as dt
 import warnings
 import tqdm
-from category_encoders import TargetEncoder, CatBoostEncoder, GLMMEncoder
+
+# from category_encoders import TargetEncoder, CatBoostEncoder, GLMMEncoder
 
 
 # %%
@@ -25,20 +27,20 @@ def clean_impute_raw(df: pd.DataFrame):
     This can be performed using test and train combined
     """
     # Calculate the mismatching between historical prices of user and the current to minimize the problem of missing data
-    df["visitor_hist_price_diff"] = np.abs(
-        df["visitor_hist_adr_usd"] - df["price_usd"])
+    df["visitor_hist_price_diff"] = np.abs(df["visitor_hist_adr_usd"] - df["price_usd"])
     df["visitor_hist_starrating_diff"] = np.abs(
         df["visitor_hist_starrating"] - df["prop_starrating"]
     )
     df["srch_query_affinity_score"] = np.exp(df["srch_query_affinity_score"])
-    df["mean_distance_to_other_prop"] = df.groupby(
-        "srch_id")["orig_destination_distance"].transform(lambda x: np.abs(x - x.mean()))
+    df["mean_distance_to_other_prop"] = df.groupby("srch_id")[
+        "orig_destination_distance"
+    ].transform(lambda x: np.abs(x - x.mean()))
 
     df = impute_over_group(
         df,
         group_cols="srch_id",
         columns_to_impute="mean_distance_to_other_prop",
-        func=lambda x: x.fillna(x.max())
+        func=lambda x: x.fillna(x.max()),
     )
 
     # Impute values with 0
@@ -84,8 +86,7 @@ def clean_impute_raw(df: pd.DataFrame):
         ["visitor_location_country_id", "prop_country_id"],
         "orig_destination_distance",
     )
-    df = impute_over_group(df, ["prop_country_id"],
-                           "orig_destination_distance")
+    df = impute_over_group(df, ["prop_country_id"], "orig_destination_distance")
     df["orig_destination_distance"] = df["orig_destination_distance"].transform(
         lambda x: x.fillna(x.median())
     )
@@ -130,8 +131,7 @@ def add_engineered_features(df: pd.DataFrame):
     )
 
     df["score2ma"] = (
-        df.loc[:, "prop_location_score2"] *
-        df.loc[:, "srch_query_affinity_score"]
+        df.loc[:, "prop_location_score2"] * df.loc[:, "srch_query_affinity_score"]
     )
 
     group = df.groupby("srch_id")
@@ -143,8 +143,7 @@ def add_engineered_features(df: pd.DataFrame):
 
     group = df.groupby("prop_id")
     df["avg_price_prop_id"] = group["price_usd"].transform(lambda x: x.mean())
-    df["median_price_prop_id"] = group["price_usd"].transform(
-        lambda x: x.median())
+    df["median_price_prop_id"] = group["price_usd"].transform(lambda x: x.median())
     df["std_price_prop_id"] = group["price_usd"].transform(lambda x: x.std())
     df["avg_location_score2_prop_id"] = group["prop_location_score2"].transform(
         lambda x: x.mean()
@@ -173,15 +172,15 @@ def add_engineered_features(df: pd.DataFrame):
     df["std_srch_adults_count_prop_id"] = group["srch_adults_count"].transform(
         lambda x: x.std()
     )
-    df["avg_srch_saturday_night_bool_prop_id"] = group["srch_saturday_night_bool"].transform(
-        lambda x: x.mean()
-    )
-    df["median_srch_saturday_night_bool_prop_id"] = group["srch_saturday_night_bool"].transform(
-        lambda x: x.median()
-    )
-    df["std_srch_saturday_night_bool_prop_id"] = group["srch_saturday_night_bool"].transform(
-        lambda x: x.std()
-    )
+    df["avg_srch_saturday_night_bool_prop_id"] = group[
+        "srch_saturday_night_bool"
+    ].transform(lambda x: x.mean())
+    df["median_srch_saturday_night_bool_prop_id"] = group[
+        "srch_saturday_night_bool"
+    ].transform(lambda x: x.median())
+    df["std_srch_saturday_night_bool_prop_id"] = group[
+        "srch_saturday_night_bool"
+    ].transform(lambda x: x.std())
     df["avg_srch_room_count_prop_id"] = group["srch_room_count"].transform(
         lambda x: x.mean()
     )
@@ -209,15 +208,15 @@ def add_engineered_features(df: pd.DataFrame):
     df["std_srch_length_of_stay_prop_id"] = group["srch_length_of_stay"].transform(
         lambda x: x.std()
     )
-    df["avg_srch_query_affinity_score_prop_id"] = group["srch_query_affinity_score"].transform(
-        lambda x: x.mean()
-    )
-    df["median_srch_query_affinity_score_prop_id"] = group["srch_query_affinity_score"].transform(
-        lambda x: x.median()
-    )
-    df["std_srch_query_affinity_score_prop_id"] = group["srch_query_affinity_score"].transform(
-        lambda x: x.std()
-    )
+    df["avg_srch_query_affinity_score_prop_id"] = group[
+        "srch_query_affinity_score"
+    ].transform(lambda x: x.mean())
+    df["median_srch_query_affinity_score_prop_id"] = group[
+        "srch_query_affinity_score"
+    ].transform(lambda x: x.median())
+    df["std_srch_query_affinity_score_prop_id"] = group[
+        "srch_query_affinity_score"
+    ].transform(lambda x: x.std())
 
     return df
 
@@ -230,8 +229,7 @@ def add_target_encoded_features(to_enrich: pd.DataFrame, train: pd.DataFrame):
         agg_func="mean",
     )
 
-    to_enrich = enrich_target_encoding(
-        to_enrich, encoded_prop_id, group_col="prop_id")
+    to_enrich = enrich_target_encoding(to_enrich, encoded_prop_id, group_col="prop_id")
 
     return to_enrich
 
@@ -332,8 +330,7 @@ def main():
         r"data\test_set_VU_DM.csv", infer_datetime_format=True, parse_dates=[2]
     )
 
-    full_train, full_test = run_pipe(
-        full_train, full_test, validation_set=False)
+    full_train, full_test = run_pipe(full_train, full_test, validation_set=False)
 
     full_train.to_csv(r"data\curated_train.csv", index=False)
     print("Saved curated train data!")

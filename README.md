@@ -7,3 +7,12 @@ The solution can be divided into three main steps:
 3. Feature engineering
 4. Hyperparameter optimization
 5. Training phase and scoring
+
+To install the `expedia_kaggle` package use run the following command from the root directory:
+
+Windows:
+
+    pip install -e .\modules\expedia_kaggle
+Linux:
+
+    pip install -e /modules/expedia_kaggle

@@ -11,3 +11,6 @@
 *.tgz
 *.tbz2
 *.tbz
+build/
+dist/
+*.egg-info/
