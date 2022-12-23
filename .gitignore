@@ -2,7 +2,6 @@
 *.csv
 *.code-workspace
 .vscode/
-
 *.zip
 *.tar.gz
 *.tar.xz

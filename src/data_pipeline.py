@@ -1,11 +1,10 @@
 # %%
 import os
-from tokenize import group
 import pandas as pd
 import numpy as np
 
 # from project_modules.model_functions import *
-from expedia_kaggle.preprocessing import (
+from helpers.helper_functions import (
     target_encoding_values,
     enrich_target_encoding,
     null_impute_value,
@@ -303,8 +302,7 @@ def run_pipe(train, test, validation_set=False):
 
 
 def main():
-    # wd = r"C:\Users\jacbr\OneDrive\Documenten\vu-data-mining-techniques\Assignment 2"
-    wd = r"C:\Users\Beheerder\Documents\vu-data-mining-techniques\Assignment 2"
+    data_dir = r".\data"
     os.chdir(wd)
     # %%
     # Load data
