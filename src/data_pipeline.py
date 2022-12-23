@@ -2,6 +2,7 @@
 import os
 import pandas as pd
 import numpy as np
+import configparser
 
 # from project_modules.model_functions import *
 from helpers.helper_functions import (
@@ -16,6 +17,11 @@ from helpers.helper_functions import (
 # import datetime as dt
 import warnings
 import tqdm
+
+config = configparser.ConfigParser()
+config.read(
+    "config.ini",
+)
 
 # from category_encoders import TargetEncoder, CatBoostEncoder, GLMMEncoder
 
