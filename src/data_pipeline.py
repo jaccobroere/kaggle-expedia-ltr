@@ -3,8 +3,11 @@ import os
 import pandas as pd
 import numpy as np
 import configparser
+import logging
+import warnings
+import tqdm
+import datetime as dt
 
-# from project_modules.model_functions import *
 from helpers.helper_functions import (
     target_encoding_values,
     enrich_target_encoding,
@@ -14,9 +17,6 @@ from helpers.helper_functions import (
     impute_over_group,
 )
 
-# import datetime as dt
-import warnings
-import tqdm
 
 # %%
 def clean_impute_raw(df: pd.DataFrame):
@@ -310,7 +310,16 @@ def main():
     root_dir = config["FILES"]["ROOT_DIR"]
     os.chdir(root_dir)
 
+    # Setup logging
+    timestamp = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
+    logging.basicConfig(
+        filename=f"{config['LOGGING']['LOG_DIR']}/{timestamp}_data_pipeline.log",
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(name)s %(message)s",
+    )
+
     # Load training data and add target to train data
+    logging.info("Loading data...")
     train = pd.read_csv(
         config["DATA"]["RAW_TRAINING_DATA"],
         infer_datetime_format=True,
@@ -319,18 +328,20 @@ def main():
     test = pd.read_csv(
         config["DATA"]["RAW_TEST_DATA"], infer_datetime_format=True, parse_dates=[2]
     )
+    logging.info("Data loading succesful!")
 
     # Run the data pipeline
     train, test = run_pipe(train=train, test=test, validation_set=False)
 
     # Write the curated data to disk
-    train.to_csv(r"data\curated_train.csv", index=False)
-    print("Saved curated train data!")
-    test.to_csv(r"data\curated_test.csv", index=False)
-    print("Saved curated test data!")
+    train.to_csv(r"data/curated_train.csv", index=False)
+    logging.info("Saved curated train data!")
+
+    test.to_csv(r"data/curated_test.csv", index=False)
+    logging.info("Saved curated test data!")
 
 
 # %%
 if __name__ == "__main__":
-    warnings.filterwarnings("ignore", category=RuntimeWarning)
+    # warnings.filterwarnings("ignore", category=RuntimeWarning)
     main()
