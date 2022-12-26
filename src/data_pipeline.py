@@ -120,7 +120,6 @@ def add_normalized_features(df: pd.DataFrame):
 
 
 def add_engineered_features(df: pd.DataFrame):
-
     df["fee_per_person"] = (
         df.loc[:, "price_usd"]
         * df.loc[:, "srch_room_count"]
@@ -251,7 +250,7 @@ def run_pipe(train, test, validation_set=False):
     train_idx = np.array(train.index)
     test_idx = np.array(test.index) + max(train_idx) + 1
 
-    full = pd.concat([train, test], ignore_index=True, join="outer")
+    full = pd.concat([train, test], ignore_index=True, join="outer", copy=False)
 
     pbar.set_description("Imputing data")
     full = clean_impute_raw(full)
