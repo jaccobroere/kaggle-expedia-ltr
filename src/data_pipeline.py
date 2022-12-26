@@ -18,14 +18,6 @@ from helpers.helper_functions import (
 import warnings
 import tqdm
 
-config = configparser.ConfigParser()
-config.read(
-    "config.ini",
-)
-
-# from category_encoders import TargetEncoder, CatBoostEncoder, GLMMEncoder
-
-
 # %%
 def clean_impute_raw(df: pd.DataFrame):
     """
@@ -304,44 +296,38 @@ def run_pipe(train, test, validation_set=False):
         inplace=True,
     )
 
+    train = add_target(train, target_col="target")
+
     return train, test
 
 
 def main():
-    data_dir = r".\data"
-    os.chdir(wd)
-    # %%
-    # Load data
+    # Load config file
+    config = configparser.ConfigParser()
+    config.read("config.ini")
 
-    # train = pd.read_csv(
-    #     r"data\train_dev.csv", infer_datetime_format=True, parse_dates=[2]
-    # )
-    # val = pd.read_csv(r"data\val_dev.csv",
-    #                   infer_datetime_format=True, parse_dates=[2])
+    # Set root directory
+    root_dir = config["FILES"]["ROOT_DIR"]
+    os.chdir(root_dir)
 
-    # train, val = run_pipe(train, val, validation_set=True)
-
-    # train.to_csv(r"data\curated_train_dev.csv", index=False)
-    # val.to_csv(r"data\curated_val_dev.csv", index=False)
-
-    # %%
-    full_train = add_target(
-        pd.read_csv(
-            r"data\training_set_VU_DM.csv", infer_datetime_format=True, parse_dates=[2]
-        )
+    # Load training data and add target to train data
+    train = pd.read_csv(
+        config["DATA"]["RAW_TRAINING_DATA"],
+        infer_datetime_format=True,
+        parse_dates=[2],
     )
-    full_test = pd.read_csv(
-        r"data\test_set_VU_DM.csv", infer_datetime_format=True, parse_dates=[2]
+    test = pd.read_csv(
+        config["DATA"]["RAW_TEST_DATA"], infer_datetime_format=True, parse_dates=[2]
     )
 
-    full_train, full_test = run_pipe(full_train, full_test, validation_set=False)
+    # Run the data pipeline
+    train, test = run_pipe(train=train, test=test, validation_set=False)
 
-    full_train.to_csv(r"data\curated_train.csv", index=False)
+    # Write the curated data to disk
+    train.to_csv(r"data\curated_train.csv", index=False)
     print("Saved curated train data!")
-    full_test.to_csv(r"data\curated_test.csv", index=False)
+    test.to_csv(r"data\curated_test.csv", index=False)
     print("Saved curated test data!")
-
-    # %%
 
 
 # %%

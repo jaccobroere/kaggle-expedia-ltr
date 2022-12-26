@@ -25,14 +25,13 @@ if __name__ == "__main__":
         print("Data found, extracting now")
         unzip("data.zip")
         remove("data.zip")
-
     except FileNotFoundError:
         print("Data not found, downloading now")
         get_ipython().system('echo "Downloading expedia data"')
         get_ipython().system(
             "kaggle competitions download -c expedia-personalized-sort -f data.zip"
         )
-        get_ipython().system('echo "This is working"')
 
+    try:
         unzip("data.zip")
         remove("data.zip")
