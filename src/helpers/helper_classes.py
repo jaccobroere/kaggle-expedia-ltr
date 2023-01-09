@@ -7,7 +7,7 @@ import dask.dataframe as dd
 
 
 def get_columns(fname: str) -> list:
-    """Get the columns of a csv file. If the file does not exist, create it and return an empty list."""
+    """Get the column names of a csv file. If the file does not exist, create it and return an empty list."""
     try:
         return pd.read_csv(fname, nrows=0).columns.tolist()
     except EmptyDataError:
