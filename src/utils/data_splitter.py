@@ -1,8 +1,6 @@
-from typing import Generator, Optional, Union, List
+from typing import Optional, Union, List
 import pandas as pd
 from sklearn.model_selection import GroupShuffleSplit
-import timeit
-import csv
 
 
 def read_columns(
@@ -58,98 +56,28 @@ def subset_index(
         The subset of the index of the input data. If 'val_size' is provided,
         returns a tuple with the training and validation subsets of the index.
     """
+    df["aux_index"] = df.index
 
     idx, _ = next(
         GroupShuffleSplit(n_splits=1, test_size=(1 - size)).split(
             df, groups=df.loc[:, col]
         )
     )
+    res_idx = df.loc[idx, "aux_index"]
 
-    if val_size:
-        if size is None:
-            raise ValueError("'size' must be provided if 'val_size' is specified")
+    if not val_size:
+        return res_idx
 
-        val_idx = next(
-            GroupShuffleSplit(n_splits=1, test_size=(1 - val_size)).split(
-                df.loc[~df.index.isin(idx)]
-            )
+    df_val = df.loc[~df.index.isin(res_idx), :].reset_index()
+    val_idx, _ = next(
+        GroupShuffleSplit(n_splits=1, test_size=(1 - val_size / (1 - size))).split(
+            df_val, groups=df_val.loc[:, col]
         )
-        return idx, val_idx
-    else:
-        return idx
+    )
+    res_val_idx = df_val.loc[val_idx, "aux_index"]
 
-
-def row_generator_idx(
-    reader: csv.reader, idx: List[int]
-) -> Generator[List[str], None, None]:
-    """
-    A generator that reads specific rows from a CSV file one at a time.
-
-    Parameters
-    ----------
-    reader: csv.reader
-        A CSV reader object.
-    idx: List[int]
-        A list of row indices to read from the file.
-
-    Yields
-    ------
-    List[str]
-        A row from the CSV file.
-    """
-    while True:
-        try:
-            while reader.line_num not in idx:
-                next(reader)
-
-            yield next(reader)
-
-        except StopIteration:
-            break
-
-
-def read_csv_rows(
-    file_path: str, idx: List[int], header: Optional[bool] = True
-) -> pd.DataFrame:
-    """
-    Read specific rows from a CSV file and return a Pandas DataFrame.
-
-    Parameters
-    ----------
-    file_path: str
-        The path to the CSV file.
-    idx: List[int]
-        A list of row indices to read from the file.
-    header: bool, optional
-        Whether the first row of the CSV file should be used as the column names for the DataFrame. Default is True.
-
-    Returns
-    -------
-    pd.DataFrame
-        A Pandas DataFrame with the specified rows from the CSV file.
-    """
-    with open(file_path, "r") as f:
-        reader = csv.reader(f)
-
-        if header:
-            df = pd.DataFrame(columns=next(reader))
-
-        for i, row in enumerate(row_generator_idx(reader, idx)):
-            if i == 0 and not header:
-                df = pd.DataFrame(data=row)
-                continue
-
-            df = pd.concat([df, pd.DataFrame(data=row)])
-
-    return df
+    return res_idx, res_val_idx
 
 
 if __name__ == "__main__":
-
-    idx = [i for i in range(1000) if i % 4 == 0]
-    path = "data/playground.csv"
-    # measure the time it takes to run function 2
-    time_2 = timeit.timeit(lambda: read_csv_rows(path, idx), number=1)
-    print(time_2)
-
-    df = read_csv_rows(path, idx)
+    pass

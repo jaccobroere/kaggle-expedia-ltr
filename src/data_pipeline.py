@@ -7,8 +7,9 @@ import logging
 import warnings
 import tqdm
 import datetime as dt
+from dask import dataframe as dd
 
-from helpers.helper_functions import (
+from utils.helper_functions import (
     target_encoding_values,
     enrich_target_encoding,
     null_impute_value,
@@ -16,6 +17,7 @@ from helpers.helper_functions import (
     add_norm_features_for_value,
     impute_over_group,
 )
+from utils.data_splitter import read_columns, subset_index
 
 
 # %%
@@ -317,27 +319,38 @@ def main():
         format="%(asctime)s %(levelname)s %(name)s %(message)s",
     )
 
-    # Load training data and add target to train data
-    logging.info("Loading data...")
-    train = pd.read_csv(
-        config["DATA"]["RAW_TRAINING_DATA"],
-        infer_datetime_format=True,
-        parse_dates=[2],
+    # Split the training data to a smaller set to decrease training time
+    train_id = read_columns(config["DATA"]["RAW_TRAINING_DATA"], ["srch_id"])
+    idx, val_idx = subset_index(train_id, col="srch_id", size=0.1, val_size=0.1)
+    train = dd.read_csv(config["DATA"]["RAW_TRAINING_DATA"])
+    train.loc[lambda x: x.index.isin(idx)].to_parquet(
+        config["DATA"]["SUBSET_TRAINING_DATA"]
     )
-    test = pd.read_csv(
-        config["DATA"]["RAW_TEST_DATA"], infer_datetime_format=True, parse_dates=[2]
+    train.loc[lambda x: x.index.isin(val_idx)].to_parquet(
+        config["DATA"]["SUBSET_VALIDATION_DATA"]
     )
-    logging.info("Data loading succesful!")
 
-    # Run the data pipeline
-    train, test = run_pipe(train=train, test=test, validation_set=False)
+    # # Load training data and add target to train data
+    # logging.info("Loading data...")
+    # train = pd.read_csv(
+    #     config["DATA"]["RAW_TRAINING_DATA"],
+    #     infer_datetime_format=True,
+    #     parse_dates=[2],
+    # )
+    # test = pd.read_csv(
+    #     config["DATA"]["RAW_TEST_DATA"], infer_datetime_format=True, parse_dates=[2]
+    # )
+    # logging.info("Data loading succesful!")
 
-    # Write the curated data to disk
-    train.to_csv(r"data/curated_train.csv", index=False)
-    logging.info("Saved curated train data!")
+    # # Run the data pipeline
+    # train, test = run_pipe(train=train, test=test, validation_set=False)
 
-    test.to_csv(r"data/curated_test.csv", index=False)
-    logging.info("Saved curated test data!")
+    # # Write the curated data to disk
+    # train.to_csv(r"data/curated_train.csv", index=False)
+    # logging.info("Saved curated train data!")
+
+    # test.to_csv(r"data/curated_test.csv", index=False)
+    # logging.info("Saved curated test data!")
 
 
 # %%
