@@ -246,7 +246,7 @@ def impute_last_missing_values(df: pd.DataFrame):
     return df
 
 
-def run_pipe(train, test, val, drop_target=True, logging=True):
+def run_pipe(train, test, val):
     pbar = tqdm.tqdm(total=100)
     train_idx = np.array(train.index)
     val_idx = np.array(val.index) + max(train_idx) + 1
@@ -291,9 +291,6 @@ def run_pipe(train, test, val, drop_target=True, logging=True):
         columns=columns_to_drop,
         inplace=True,
     )
-
-    if drop_target:
-        columns_to_drop.append("target")
 
     test.drop(
         columns=columns_to_drop,
