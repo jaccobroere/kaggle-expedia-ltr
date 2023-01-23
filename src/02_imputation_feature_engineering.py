@@ -276,10 +276,9 @@ def run_pipe(train, test, val, drop_target=True, logging=True):
     # train = add_target_encoded_features(train, train)
     # test = add_target_encoded_features(test, train)
 
-    train = impute_last_missing_values(train)
-    val = impute_last_missing_values(val)
-    test = impute_last_missing_values(test)
-    pbar.update(25)
+    # train = impute_last_missing_values(train)
+    # val = impute_last_missing_values(val)
+    # test = impute_last_missing_values(test)
 
     columns_to_drop = [
         "position",
@@ -303,6 +302,8 @@ def run_pipe(train, test, val, drop_target=True, logging=True):
 
     train = add_target(train, target_col="target")
 
+    pbar.update(25)
+
     return train, test
 
 
@@ -315,7 +316,7 @@ def main():
     ROOT_DIR = config["FILES"]["ROOT_DIR"]
     TRAIN = config["DATA"]["SUBSET_TRAINING_DATA"]
     VALIDATION = config["DATA"]["SUBSET_VALIDATION_DATA"]
-    TEST = config["DATA"]["RAW_TEST_DATA"]
+    TEST = config["DATA"]["SUBSET_TEST_DATA"]
     LOG_DIR = config["LOGGING"]["LOG_DIR"]
 
     # Change working directory
@@ -341,11 +342,12 @@ def main():
         infer_datetime_format=True,
         parse_dates=[2],
     ).compute()
-    test = dd.read_csv(TEST, infer_datetime_format=True, parse_dates=[2]).compute()
+    test = dd.read_parquet(TEST, infer_datetime_format=True, parse_dates=[2]).compute()
     logging.info("Data loading succesful!")
 
-    # Run the data pipeline
+    logging.info("Running data pipeline...")
     train, val, test = run_pipe(train=train, test=test, val=val, drop_target=True)
+    logging.info("Data pipeline succesful!")
 
     # # Write the curated data to disk
     train.to_parquet(r"data/curated_train.csv", index=False)
