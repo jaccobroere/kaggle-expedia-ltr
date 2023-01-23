@@ -4,10 +4,10 @@ import pandas as pd
 import numpy as np
 import configparser
 import logging
-import warnings
 import tqdm
 import datetime as dt
 from dask import dataframe as dd
+import warnings
 
 from utils.helper_functions import (
     target_encoding_values,
@@ -17,7 +17,6 @@ from utils.helper_functions import (
     add_norm_features_for_value,
     impute_over_group,
 )
-from utils.data_splitter import read_columns, subset_index
 
 
 # %%
@@ -247,12 +246,13 @@ def impute_last_missing_values(df: pd.DataFrame):
     return df
 
 
-def run_pipe(train, test, validation_set=False):
+def run_pipe(train, test, val, drop_target=True, logging=True):
     pbar = tqdm.tqdm(total=100)
     train_idx = np.array(train.index)
-    test_idx = np.array(test.index) + max(train_idx) + 1
+    val_idx = np.array(val.index) + max(train_idx) + 1
+    test_idx = np.array(test.index) + max(val_idx) + 1
 
-    full = pd.concat([train, test], ignore_index=True, join="outer", copy=False)
+    full = pd.concat([train, val, test], ignore_index=True, join="outer", copy=False)
 
     pbar.set_description("Imputing data")
     full = clean_impute_raw(full)
@@ -266,31 +266,35 @@ def run_pipe(train, test, validation_set=False):
     full = add_engineered_features(full)
     pbar.update(25)
 
-    train, test = full.loc[train_idx, :], full.loc[test_idx, :]
+    train, val, test = (
+        full.loc[train_idx, :],
+        full.loc[val_idx, :],
+        full.loc[test_idx, :],
+    )
 
-    pbar.set_description("Adding target encoded features")
-    train = add_target_encoded_features(train, train)
-    test = add_target_encoded_features(test, train)
-    pbar.update(25)
+    # pbar.set_description("Adding target encoded features")
+    # train = add_target_encoded_features(train, train)
+    # test = add_target_encoded_features(test, train)
 
     train = impute_last_missing_values(train)
+    val = impute_last_missing_values(val)
     test = impute_last_missing_values(test)
+    pbar.update(25)
 
-    if validation_set:
-        columns_to_drop = [
-            "position",
-            "click_bool",
-            "gross_bookings_usd",
-            "booking_bool",
-        ]
-    else:
-        columns_to_drop = [
-            "position",
-            "click_bool",
-            "gross_bookings_usd",
-            "booking_bool",
-            "target",
-        ]
+    columns_to_drop = [
+        "position",
+        "click_bool",
+        "gross_bookings_usd",
+        "booking_bool",
+    ]
+
+    val.drop(
+        columns=columns_to_drop,
+        inplace=True,
+    )
+
+    if drop_target:
+        columns_to_drop.append("target")
 
     test.drop(
         columns=columns_to_drop,
@@ -307,53 +311,54 @@ def main():
     config = configparser.ConfigParser()
     config.read("config.ini")
 
-    # Set root directory
-    root_dir = config["FILES"]["ROOT_DIR"]
-    os.chdir(root_dir)
+    # Read config file
+    ROOT_DIR = config["FILES"]["ROOT_DIR"]
+    TRAIN = config["DATA"]["SUBSET_TRAINING_DATA"]
+    VALIDATION = config["DATA"]["SUBSET_VALIDATION_DATA"]
+    TEST = config["DATA"]["RAW_TEST_DATA"]
+    LOG_DIR = config["LOGGING"]["LOG_DIR"]
+
+    # Change working directory
+    os.chdir(ROOT_DIR)
 
     # Setup logging
     timestamp = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
     logging.basicConfig(
-        filename=f"{config['LOGGING']['LOG_DIR']}/{timestamp}_data_pipeline.log",
+        filename=f"{LOG_DIR}/{timestamp}_imputation_feature_engineering.log",
         level=logging.INFO,
         format="%(asctime)s %(levelname)s %(name)s %(message)s",
     )
 
-    # Split the training data to a smaller set to decrease training time
-    train_id = read_columns(config["DATA"]["RAW_TRAINING_DATA"], ["srch_id"])
-    idx, val_idx = subset_index(train_id, col="srch_id", size=0.1, val_size=0.1)
-    train = dd.read_csv(config["DATA"]["RAW_TRAINING_DATA"])
-    train.loc[lambda x: x.index.isin(idx)].to_parquet(
-        config["DATA"]["SUBSET_TRAINING_DATA"]
-    )
-    train.loc[lambda x: x.index.isin(val_idx)].to_parquet(
-        config["DATA"]["SUBSET_VALIDATION_DATA"]
-    )
-
     # # Load training data and add target to train data
-    # logging.info("Loading data...")
-    # train = pd.read_csv(
-    #     config["DATA"]["RAW_TRAINING_DATA"],
-    #     infer_datetime_format=True,
-    #     parse_dates=[2],
-    # )
-    # test = pd.read_csv(
-    #     config["DATA"]["RAW_TEST_DATA"], infer_datetime_format=True, parse_dates=[2]
-    # )
-    # logging.info("Data loading succesful!")
+    logging.info("Loading data...")
+    train = dd.read_parquet(
+        TRAIN,
+        infer_datetime_format=True,
+        parse_dates=[2],
+    ).compute()
+    val = dd.read_parquet(
+        VALIDATION,
+        infer_datetime_format=True,
+        parse_dates=[2],
+    ).compute()
+    test = dd.read_csv(TEST, infer_datetime_format=True, parse_dates=[2]).compute()
+    logging.info("Data loading succesful!")
 
-    # # Run the data pipeline
-    # train, test = run_pipe(train=train, test=test, validation_set=False)
+    # Run the data pipeline
+    train, val, test = run_pipe(train=train, test=test, val=val, drop_target=True)
 
     # # Write the curated data to disk
-    # train.to_csv(r"data/curated_train.csv", index=False)
-    # logging.info("Saved curated train data!")
+    train.to_parquet(r"data/curated_train.csv", index=False)
+    logging.info("Saved curated train data!")
 
-    # test.to_csv(r"data/curated_test.csv", index=False)
-    # logging.info("Saved curated test data!")
+    val.to_parquet(r"data/curated_val.csv", index=False)
+    logging.info("Saved curated val data!")
+
+    test.to_parquet(r"data/curated_test.csv", index=False)
+    logging.info("Saved curated test data!")
 
 
 # %%
 if __name__ == "__main__":
-    # warnings.filterwarnings("ignore", category=RuntimeWarning)
+    warnings.filterwarnings("ignore", category=RuntimeWarning)
     main()
