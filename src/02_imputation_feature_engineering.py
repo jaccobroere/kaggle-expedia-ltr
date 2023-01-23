@@ -343,7 +343,7 @@ def main():
     logging.info("Data loading succesful!")
 
     logging.info("Running data pipeline...")
-    train, val, test = run_pipe(train=train, test=test, val=val, drop_target=True)
+    train, val, test = run_pipe(train=train, test=test, val=val)
     logging.info("Data pipeline succesful!")
 
     # # Write the curated data to disk
