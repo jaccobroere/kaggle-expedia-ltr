@@ -41,7 +41,7 @@ def main():
     logging.info("Reading training data ...")
     train_id = read_columns(RAW_TRAIN, ["srch_id"])
 
-    logging.info("Subsetting training data ...")
+    logging.info("Subsetting training and testing data ...")
     idx, val_idx = subset_index(
         train_id, col="srch_id", size=TRAIN_SIZE, val_size=VAL_SIZE
     )

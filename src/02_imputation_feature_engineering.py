@@ -247,11 +247,10 @@ def impute_last_missing_values(df: pd.DataFrame):
 
 
 def run_pipe(train, test, val):
-    pbar = tqdm.tqdm(total=100)
-    train_idx = np.array(train.index)
-    val_idx = np.array(val.index) + max(train_idx) + 1
-    test_idx = np.array(test.index) + max(val_idx) + 1
+    for df, name in zip([train, test, val], ["train", "test", "val"]):
+        df["DATA_CAT"] = name
 
+    pbar = tqdm.tqdm(total=100)
     full = pd.concat([train, val, test], ignore_index=True, join="outer", copy=False)
 
     pbar.set_description("Imputing data")
@@ -267,9 +266,9 @@ def run_pipe(train, test, val):
     pbar.update(25)
 
     train, val, test = (
-        full.loc[train_idx, :],
-        full.loc[val_idx, :],
-        full.loc[test_idx, :],
+        full.loc[full.DATA_CAT == "train", :].drop(columns="DATA_CAT"),
+        full.loc[full.DATA_CAT == "val", :].drop(columns="DATA_CAT"),
+        full.loc[full.DATA_CAT == "test", :].drop(columns="DATA_CAT"),
     )
 
     # pbar.set_description("Adding target encoded features")
@@ -301,7 +300,7 @@ def run_pipe(train, test, val):
 
     pbar.update(25)
 
-    return train, test
+    return train, val, test
 
 
 def main():
@@ -347,13 +346,13 @@ def main():
     logging.info("Data pipeline succesful!")
 
     # # Write the curated data to disk
-    train.to_parquet(r"data/curated_train.csv", index=False)
+    train.to_parquet(r"data/curated_train.parquet", index=False)
     logging.info("Saved curated train data!")
 
-    val.to_parquet(r"data/curated_val.csv", index=False)
+    val.to_parquet(r"data/curated_val.parquet", index=False)
     logging.info("Saved curated val data!")
 
-    test.to_parquet(r"data/curated_test.csv", index=False)
+    test.to_parquet(r"data/curated_test.parquet", index=False)
     logging.info("Saved curated test data!")
 
 
