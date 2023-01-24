@@ -1,4 +1,5 @@
 .venv/
+venv/
 *.csv
 *.code-workspace
 .vscode/
