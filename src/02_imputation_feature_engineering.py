@@ -286,17 +286,13 @@ def run_pipe(train, test, val):
         "booking_bool",
     ]
 
-    val.drop(
-        columns=columns_to_drop,
-        inplace=True,
-    )
-
     test.drop(
         columns=columns_to_drop,
         inplace=True,
     )
 
     train = add_target(train, target_col="target")
+    val = add_target(val, target_col="target")
 
     pbar.update(25)
 
