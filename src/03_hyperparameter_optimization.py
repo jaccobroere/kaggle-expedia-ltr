@@ -75,7 +75,9 @@ def run_optimization(
 ):
     study_name = "LGBMRanker Hyperparameter optimization"
     study = optuna.create_study(
-        direction="maximize", study_name=study_name, sampler=optuna.samplers.TPESampler
+        direction="maximize",
+        study_name=study_name,
+        sampler=optuna.samplers.TPESampler(),
     )
 
     def obj(trial):
