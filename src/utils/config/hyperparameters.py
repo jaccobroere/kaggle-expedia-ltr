@@ -8,12 +8,22 @@ class OptunaOptimization:
         self,
         X_train,
         y_train,
+        train_groups,
+        X_val,
+        y_val,
+        val_groups,
+        k,
         hyperparameter_config,
         n_trials=50,
         name=None,
     ):
         self.X_train = X_train
         self.y_train = y_train
+        self.train_groups = train_groups
+        self.X_val = X_val
+        self.y_val = y_val
+        self.val_groups = val_groups
+        self.k = k
         self.n_trials = n_trials
         self.cfg = hyperparameter_config
         self.name = name
@@ -116,15 +126,12 @@ class HyperparameterConfig:
     def get_model(self) -> object:
         return self.model
 
-    def register_logger(self, logger):
-        self.model.register_logger(logger)
-
     def get_trial(self) -> optuna.trial.Trial:
         return self.trial
 
 
 class LGBMRankerConfig(HyperparameterConfig):
-    def __init__(self, model: lgb.LGBMRanker()) -> None:
+    def __init__(self, model=lgb.LGBMRanker()) -> None:
         super().__init__(model)
         self.params = {
             "static": {
