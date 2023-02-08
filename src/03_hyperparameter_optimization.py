@@ -3,6 +3,7 @@ import datetime as dt
 import logging
 import os
 
+import lightgbm as lgb
 import pandas as pd
 
 from utils.config.hyperparameters import (
@@ -14,6 +15,7 @@ from utils.helper_functions import date_str
 
 # Read config file
 config = configparser.ConfigParser()
+config.optionxform = str
 config.read("config.ini")
 
 # Read parameters from config file
@@ -36,6 +38,7 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s %(name)s %(message)s",
 )
 logger = logging.getLogger()
+lgb.register_logger(logger)
 
 
 def main():
@@ -46,7 +49,6 @@ def main():
     val_gropus = validation.groupby("srch_id").size().to_numpy()
 
     target = "target"
-
     cols = UseColsConfig().get_cols()
 
     optimizer = OptunaOptimization(
@@ -56,23 +58,26 @@ def main():
         X_val=validation[cols],
         y_val=validation[target],
         val_groups=val_gropus,
+        k=5,
         hyperparameter_config=LGBMRankerConfig(),
-        n_trials=20,
+        n_trials=50,
         name="LGBMRanker Hyperparameter Optimization",
     )
 
-    study = optimizer.optimize()
+    study = optimizer.run()
 
     logger.info("Optimization complete! \nBest hyperparameters:")
     logger.info(study.best_params)
 
     # Save study objects
-    optimizer.save_study_csv(
-        study, path=f"{MODEL_DIR}/{date_str()}_study_{optimizer.name}.csv"
-    )
-    optimizer.save_study_lib(
-        study, f"{MODEL_DIR}/{date_str()}_study_{optimizer.name}.pkl"
-    )
+    fname = f"{MODEL_DIR}/{date_str()}_study_{optimizer.name}.lib"
+    optimizer.save_study_csv(path=f"{fname}.csv")
+    optimizer.save_study_lib(f"{fname}.lib")
+
+    # Update paths in config file
+    config.set("MODELS", "STUDY", f"{fname}.lib")
+    config.set("MODELS", "STUDY_CSV", f"{fname}.csv")
+    config.write(open("config.ini", "w"))
 
     return study
 
