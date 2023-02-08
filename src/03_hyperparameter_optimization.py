@@ -58,7 +58,7 @@ def main():
         X_val=validation[cols],
         y_val=validation[target],
         val_groups=val_gropus,
-        k=5,
+        k=38,
         hyperparameter_config=LGBMRankerConfig(),
         n_trials=50,
         name="LGBMRanker Hyperparameter Optimization",
