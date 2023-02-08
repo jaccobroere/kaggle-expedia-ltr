@@ -1,5 +1,5 @@
 # Kaggle: Expedia Hotel Searches, Learning-to-Rank (LTR)
-This repository displays my solution to the [Personalize Expedia Hotel Searches - ICDM 2013](https://www.kaggle.com/competitions/expedia-personalized-sort/leaderboard?) competition held on Kaggle. The final NDCG@38 scores were xxx and xxx on the public and private leaderboard, respectively, using 10 percent of the training data.
+This repository displays my solution to the [Personalize Expedia Hotel Searches - ICDM 2013](https://www.kaggle.com/competitions/expedia-personalized-sort/leaderboard?) competition held on Kaggle. The final NDCG@38 scores were 0.51004 and 0.51152 and on the private and public leaderboard, respectively, using 10 percent of the training data.
 
 ## Problem statement and evaluation method
 The problem statement can be read in [problem_statement.pdf](problem_statement.pdf). Due to LaTeX rendering issues with GitHub's Markdown.
