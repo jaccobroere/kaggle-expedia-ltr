@@ -89,8 +89,11 @@ def main():
     # Train model
     model = train()
 
-    # Score model
+    # Score model and rename columns to match submission format
     rankings = score(model)
+    rankings.rename(
+        columns={"srch_id": "SearchId", "prop_id": "PropertyId"}, inplace=True
+    )
 
     # Save the rankings to a csv file
     rankings.to_csv(f"{MODEL_DIR}/{date_str()}_rankings.csv", index=False)
