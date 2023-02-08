@@ -62,7 +62,10 @@ def train():
 
     # Fit model using train and validation data
     model.fit(
-        train[cols], train[target], group=train.groupby("srch_id").size().to_numpy()
+        train[cols],
+        train[target],
+        group=train.groupby("srch_id").size().to_numpy(),
+        eval_at=[38],
     )
 
     return model
