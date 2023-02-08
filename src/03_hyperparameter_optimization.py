@@ -1,12 +1,16 @@
-import optuna
-import pandas as pd
-import lightgbm as lgb
-import pickle
-import os
-import logging
-from utils.config.hyperparameters import HyperparameterConfig, UseColsConfig
 import configparser
 import datetime as dt
+import logging
+import os
+
+import pandas as pd
+
+from utils.config.hyperparameters import (
+    LGBMRankerConfig,
+    OptunaOptimization,
+    UseColsConfig,
+)
+from utils.helper_functions import date_str
 
 # Read config file
 config = configparser.ConfigParser()
@@ -28,69 +32,10 @@ os.chdir(ROOT_DIR)
 timestamp = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
 logging.basicConfig(
     filename=f"{LOG_DIR}/{timestamp}_tuning_hyperparameters.log",
-    level=logging.INFO,
+    level=logging.DEBUG,
     format="%(asctime)s %(levelname)s %(name)s %(message)s",
 )
 logger = logging.getLogger()
-lgb.register_logger(logger)
-
-
-def objective(trial, X_train, y_train, group, X_val, y_val, eval_group, k=5):
-    params = HyperparameterConfig(trial=trial).get_params()
-    static_params = {
-        "n_jobs": -1,
-        "objective": "lambdarank",
-        "n_estimators": 300,
-        "learning_rate": 0.05,
-    }
-
-    model = lgb.LGBMRanker(
-        **params,
-        **static_params,
-    )
-
-    model.fit(
-        X=X_train,
-        y=y_train,
-        group=group,
-        eval_at=[k],
-        eval_set=[(X_val, y_val)],
-        eval_group=[eval_group],
-    )
-
-    return model.best_score_["valid_0"][f"ndcg@{k}"]
-
-
-def run_optimization(
-    X_train,
-    y_train,
-    group,
-    X_val,
-    y_val,
-    eval_group,
-    n_trials=50,
-    k=5,
-    name="LGBMRanker Hyperparameter Optimization",
-    save=True,
-):
-    study_name = "LGBMRanker Hyperparameter optimization"
-    study = optuna.create_study(
-        direction="maximize",
-        study_name=study_name,
-        sampler=optuna.samplers.TPESampler(),
-    )
-
-    def obj(trial):
-        return objective(trial, X_train, y_train, group, X_val, y_val, eval_group, k)
-
-    study.optimize(obj, n_trials=n_trials, show_progress_bar=True)
-
-    if save:
-        timestamp = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
-        with open(f"{MODEL_DIR}/{timestamp}_{name}.pkl", "wb") as f:
-            pickle.dump(study, f)
-
-    return study
 
 
 def main():
@@ -104,16 +49,29 @@ def main():
 
     cols = UseColsConfig().get_cols()
 
-    study = run_optimization(
+    optimizer = OptunaOptimization(
         X_train=train[cols],
         y_train=train[target],
-        group=train_groups,
+        train_groups=train_groups,
         X_val=validation[cols],
         y_val=validation[target],
-        eval_group=val_gropus,
+        val_groups=val_gropus,
+        hyperparameter_config=LGBMRankerConfig(),
         n_trials=20,
-        k=5,
         name="LGBMRanker Hyperparameter Optimization",
+    )
+
+    study = optimizer.optimize()
+
+    logger.info("Optimization complete! \nBest hyperparameters:")
+    logger.info(study.best_params)
+
+    # Save study objects
+    optimizer.save_study_csv(
+        study, path=f"{MODEL_DIR}/{date_str()}_study_{optimizer.name}.csv"
+    )
+    optimizer.save_study_lib(
+        study, f"{MODEL_DIR}/{date_str()}_study_{optimizer.name}.pkl"
     )
 
     return study

@@ -1,28 +1,159 @@
+import joblib
+import lightgbm as lgb
 import optuna
 
 
-class HyperparameterConfig:
-    def __init__(self, trial: optuna.trial.Trial) -> None:
-        self.trial = trial
-        self.num_leaves = trial.suggest_int("num_leaves", 15, 1500)
-        self.max_depth = trial.suggest_int("max_depth", -1, 15)
-        self.min_data_in_leaf = trial.suggest_int(
-            "min_data_in_leaf", 200, 10000, step=100
-        )
-        self.min_gain_to_split = trial.suggest_float("min_gain_to_split", 0, 15)
-        self.subsample = trial.suggest_float("subsample", 0.2, 1)
-        self.colsample_bytree = trial.suggest_float("colsample_bytree", 0.2, 1)
+class OptunaOptimization:
+    def __init__(
+        self,
+        X_train,
+        y_train,
+        hyperparameter_config,
+        n_trials=50,
+        name=None,
+    ):
+        self.X_train = X_train
+        self.y_train = y_train
+        self.n_trials = n_trials
+        self.cfg = hyperparameter_config
+        self.name = name
 
-    def get_params(self) -> dict:
-        params = {
-            "num_leaves": self.num_leaves,
-            "max_depth": self.max_depth,
-            "min_data_in_leaf": self.min_data_in_leaf,
-            "min_gain_to_split": self.min_gain_to_split,
-            "subsample": self.subsample,
-            "colsample_bytree": self.colsample_bytree,
+    def _objective(
+        self,
+        trial,
+        X_train,
+        y_train,
+        train_groups,
+        X_val,
+        y_val,
+        val_groups,
+        k,
+        log: bool = False,
+    ):
+        # Initialize the model with the trial hyperparameters
+        self.cfg.set_trial(trial=trial)
+        self.cfg.init_params()
+
+        # Get parameters
+        params = self.cfg.get_params()
+        model = self.cfg.get_model()
+
+        # Set static and dynamic model parameters
+        model.set_params(**params.get("static"))
+        model.set_params(**params.get("dynamic"))
+
+        # Train model
+        model.fit(
+            X=X_train,
+            y=y_train,
+            group=train_groups,
+            eval_at=[k],
+            eval_set=[(X_val, y_val)],
+            eval_group=[val_groups],
+        )
+
+        # Retrieve best NDCG@k score
+        score = model.best_score_["valid_0"][f"ndcg@{k}"]
+
+        return score
+
+    def run(self):
+        # Create optuna study object
+        self.study = optuna.create_study(
+            direction="maximize",
+            study_name=self.name,
+        )
+
+        # Optimize model parameters
+        self.study.optimize(
+            lambda trial: self._objective(
+                trial,
+                self.X_train,
+                self.y_train,
+                self.train_groups,
+                self.X_val,
+                self.y_val,
+                self.val_groups,
+                self.k,
+            ),
+            n_trials=self.n_trials,
+            show_progress_bar=True,
+        )
+
+        return self.study
+
+    def save_study_csv(self, path="study.csv"):
+        if path is None:
+            raise ValueError("Path must be specified")
+
+        self.study.trials_dataframe().to_csv(path, index=False)
+
+        return self.study
+
+    def save_study_lib(self, path="study.lib"):
+        if path is None:
+            raise ValueError("Path must be specified")
+
+        joblib.dump(self.study, path)
+
+        return self.study
+
+
+class HyperparameterConfig:
+    def __init__(self, model) -> None:
+        self.random_state = 2023
+        self.model = model
+
+    def set_trial(self, trial: optuna.trial.Trial) -> None:
+        self.trial = trial
+
+    def get_params(self, key=None) -> dict:
+        if key:
+            return self.params.get(key, None)
+        else:
+            return self.params
+
+    def get_model(self) -> object:
+        return self.model
+
+    def register_logger(self, logger):
+        self.model.register_logger(logger)
+
+    def get_trial(self) -> optuna.trial.Trial:
+        return self.trial
+
+
+class LGBMRankerConfig(HyperparameterConfig):
+    def __init__(self, model: lgb.LGBMRanker()) -> None:
+        super().__init__(model)
+        self.params = {
+            "static": {
+                "n_jobs": -1,
+                "objective": "lambdarank",
+                "n_estimators": 300,
+                "learning_rate": 0.05,
+            }
         }
-        return params
+
+    def init_params(self):
+        # Check if trial is set
+        if self.trial is None:
+            raise ValueError("Trial is not set. Please set trial first.")
+
+        # Set model hyperparameter that are te be optimized
+        self.params["dynamic"] = {
+            "num_leaves": self.trial.suggest_int("num_leaves", 15, 1500),
+            "max_depth": self.trial.suggest_int("max_depth", -1, 15),
+            "min_data_in_leaf": self.trial.suggest_int(
+                "min_data_in_leaf", 200, 10000, step=100
+            ),
+            "reg_alpha": self.trial.suggest_float("reg_alpha", 0, 10),
+            "reg_lambda": self.trial.suggest_float("reg_lambda", 0, 10),
+            # "min_gain_to_split": self.trial.suggest_float("min_gain_to_split", 0, 15),
+            # "subsample": self.trial.suggest_float("subsample", 0.2, 1),
+            #             "bagging_freq": self.trial.suggest_categorical("bagging_freq", [1]),
+            "colsample_bytree": self.trial.suggest_float("colsample_bytree", 0.2, 1),
+        }
 
 
 class UseColsConfig:
@@ -100,8 +231,10 @@ class UseColsConfig:
             "avg_location_score2_prop_id",
             "median_location_score2_prop_id",
             "std_location_score2_prop_id"
-            #    'booking_bool_encoded', 'click_bool_encoded',
-            #    'target_encoded', 'position_encoded'
+            #    'booking_bool_encoded',
+            #    'click_bool_encoded',
+            #    'target_encoded',
+            #    'position_encoded'
         ]
 
     def get_cols(self) -> list:
