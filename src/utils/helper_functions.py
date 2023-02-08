@@ -1,16 +1,17 @@
 # %%
 
-import pandas as pd
-import numpy as np
+import datetime as dt
 import os
-from sklearn.model_selection import GroupShuffleSplit
+import pickle
+
+import numpy as np
+import optuna
+import pandas as pd
 import sweetviz as sv
 from imblearn.under_sampling import RandomUnderSampler
-import datetime as dt
 from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import GroupShuffleSplit
 from tqdm import tqdm
-import optuna
-import pickle
 
 
 # %%
@@ -197,7 +198,7 @@ def enrich_target_encoding(to_enrich, encoded_values, group_col):
 
 
 def date_str():
-    return dt.datetime.now().strftime("%m-%d_%H%M")
+    return dt.datetime.now().strftime("%Y%m%d_%H%M")
 
 
 def train_val_split_group(df, test_size=0.1, group_key="srch_id"):
@@ -214,6 +215,17 @@ def train_val_split_group(df, test_size=0.1, group_key="srch_id"):
 
 def main():
     pass
+
+
+def parse_best_params_from_csv(path) -> dict:
+    df = pd.read_csv(path)
+    params = {
+        "_".join(col.split("_")[1:]): df.loc[df.value.argmax(), col]
+        for col in df.columns
+        if "params" in col
+    }
+
+    return params
 
 
 if __name__ == "__main__":

@@ -1,4 +1,5 @@
-from typing import Optional, Union, List
+from typing import List, Optional, Union
+
 import pandas as pd
 from sklearn.model_selection import GroupShuffleSplit
 
@@ -56,6 +57,9 @@ def subset_index(
         The subset of the index of the input data. If 'val_size' is provided,
         returns a tuple with the training and validation subsets of the index.
     """
+    if size == 1:
+        return df.index
+
     df["aux_index"] = df.index
 
     idx, _ = next(
