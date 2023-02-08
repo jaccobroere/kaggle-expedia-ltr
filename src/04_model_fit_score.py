@@ -6,11 +6,7 @@ import os
 import lightgbm as lgb
 import pandas as pd
 
-from utils.config.hyperparameters import (
-    LGBMRankerConfig,
-    OptunaOptimization,
-    UseColsConfig,
-)
+from utils.config.hyperparameters import LGBMRankerConfig, UseColsConfig
 from utils.helper_functions import (
     date_str,
     get_ranking_from_model,
