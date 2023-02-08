@@ -228,6 +228,16 @@ def parse_best_params_from_csv(path) -> dict:
     return params
 
 
+def get_ranking_from_model(
+    model, X, feature_list, query_id="srch_id", item_id="prop_id"
+):
+    preds = X[[query_id, item_id]]
+    preds["predictions"] = model.predict(X[feature_list])
+    res = preds.sort_values([query_id, "predictions"], ascending=[True, False])
+
+    return res[[query_id, item_id]]
+
+
 if __name__ == "__main__":
     wd = r"C:\Users\jacbr\OneDrive\Documenten\vu-data-mining-techniques\Assignment 2"
     os.chdir(wd)
